@@ -9,16 +9,15 @@ import (
 )
 
 type Engine struct {
-    Barrier Barrier
+	Barrier Barrier
 }
 
 type ApiEndpointLog struct {
-	Ip        string
-	Path      string
-	Method    string
-	Token     string
+	Ip     string
+	Path   string
+	Method string
+	Token  string
 }
-
 
 func (engine *Engine) Push(log ApiEndpointLog) error {
 	b, err := json.Marshal(log)
@@ -44,6 +43,31 @@ func (engine *Engine) Push(log ApiEndpointLog) error {
 	}
 
 	return nil
+}
+
+func (engine *Engine) GinForwardMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tok, err := c.Cookie("IFX-ACCESS-TOKEN")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, fmt.Sprintf("Unable to write log, error : %v", err.Error()))
+			c.Abort()
+		}
+
+		log := ApiEndpointLog{
+			Ip:     c.ClientIP(),
+			Path:   c.FullPath(),
+			Method: c.Request.Method,
+			Token:  tok,
+		}
+
+		err = engine.Push(log)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, fmt.Sprintf("Unable to write log, error : %v", err.Error()))
+			c.Abort()
+		}
+
+		c.Next()
+	}
 }
 
 func (engine *Engine) GinForwardLog(handler func(c *gin.Context)) gin.HandlerFunc {
