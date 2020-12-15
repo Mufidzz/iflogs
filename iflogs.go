@@ -18,8 +18,44 @@ type ApiEndpointLog struct {
 	Method string
 	Token  string
 }
+type AuthEndpointLog struct {
+	Ip     string
+	Client string
+}
 
-func (engine *Engine) Push(log ApiEndpointLog) error {
+func GenerateAPILog(c *gin.Context) ApiEndpointLog {
+	tok, err := c.Cookie("ifx-at")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, fmt.Sprintf("Unable to write log, error : %v", err.Error()))
+		c.Abort()
+	}
+
+	log := ApiEndpointLog{
+		Ip:     c.ClientIP(),
+		Path:   c.FullPath(),
+		Method: c.Request.Method,
+		Token:  tok,
+	}
+
+	return log
+}
+
+func GenerateAuthLog(c *gin.Context) AuthEndpointLog {
+	tok, err := c.Cookie("IFX-CLIENT")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, fmt.Sprintf("Unable to write log, error : %v", err.Error()))
+		c.Abort()
+	}
+
+	log := AuthEndpointLog{
+		Ip:     c.ClientIP(),
+		Client: tok,
+	}
+
+	return log
+}
+
+func (engine *Engine) Push(log interface{}) error {
 	b, err := json.Marshal(log)
 	if err != nil {
 		return fmt.Errorf("json marshall error, with real error : %v", err)
@@ -45,22 +81,9 @@ func (engine *Engine) Push(log ApiEndpointLog) error {
 	return nil
 }
 
-func (engine *Engine) GinForwardMiddleware() gin.HandlerFunc {
+func (engine *Engine) GinForwardMiddleware(log interface{}) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		tok, err := c.Cookie("IFX-ACCESS-TOKEN")
-		if err != nil {
-			c.JSON(http.StatusBadRequest, fmt.Sprintf("Unable to write log, error : %v", err.Error()))
-			c.Abort()
-		}
-
-		log := ApiEndpointLog{
-			Ip:     c.ClientIP(),
-			Path:   c.FullPath(),
-			Method: c.Request.Method,
-			Token:  tok,
-		}
-
-		err = engine.Push(log)
+		err := engine.Push(log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, fmt.Sprintf("Unable to write log, error : %v", err.Error()))
 			c.Abort()
