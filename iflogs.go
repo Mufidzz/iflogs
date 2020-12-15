@@ -81,8 +81,19 @@ func (engine *Engine) Push(log interface{}) error {
 	return nil
 }
 
-func (engine *Engine) GinForwardMiddleware(log interface{}) gin.HandlerFunc {
+func (engine *Engine) GinForwardMiddleware(tp string) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		var log interface{}
+
+		switch tp {
+		case "AUTH":
+			log = GenerateAuthLog(c)
+			break
+		case "API":
+			log = GenerateAPILog(c)
+			break
+		}
+
 		err := engine.Push(log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, fmt.Sprintf("Unable to write log, error : %v", err.Error()))
