@@ -41,12 +41,7 @@ func GenerateAPILog(c *gin.Context) ApiEndpointLog {
 }
 
 func GenerateAuthLog(c *gin.Context) AuthEndpointLog {
-	tok, err := c.Cookie("IFX-CLIENT")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, fmt.Sprintf("Unable to write log, error : %v", err.Error()))
-		c.Abort()
-	}
-
+	tok := c.GetHeader("IFX-CLIENT")
 	log := AuthEndpointLog{
 		Ip:     c.ClientIP(),
 		Client: tok,
